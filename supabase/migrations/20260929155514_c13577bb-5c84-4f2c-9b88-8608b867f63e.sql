@@ -15,7 +15,6 @@ create table if not exists public.game_tables (
   id serial primary key,
   gm_user_id text not null unique,
   name text not null default 'A Mesa',
-  invite_code text not null unique,
   created_at timestamptz not null default now()
 );
 
