@@ -33,7 +33,6 @@ export type Profile = {
   displayName: string | null;
   avatarUrl: string | null;
   tableId: number | null;
-  inviteCode: string | null;
 };
 
 export type Equipment = {

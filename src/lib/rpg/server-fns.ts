@@ -18,7 +18,7 @@ export const getLibraryFn = createServerFn({ method: "GET" })
 
 export const chooseRoleFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { role: Role; displayName: string; character?: CharacterDraft; inviteCode?: string }) => data)
+  .inputValidator((data: { role: Role; displayName: string; character?: CharacterDraft }) => data)
   .handler(async ({ context, data }) => {
     const store = await import("./store.server");
     return store.chooseRoleForUser(context.userId, data);

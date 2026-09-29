@@ -37,11 +37,6 @@ export function GmPanel({ profile, party }: { profile: Profile; party: Character
           <p className="text-xs tracking-[0.2em] text-muted uppercase">{profile.displayName ?? "Mestre"}</p>
           <h1 className="font-display text-3xl">A mesa</h1>
           <p className="text-muted">Fichas, arsenal, efeitos e o D20 — tudo passa por aqui.</p>
-          {profile.inviteCode ? (
-            <p className="mt-2 text-sm text-subtle">
-              Código da mesa: <span className="font-medium tracking-[0.18em] text-fg">{profile.inviteCode}</span>
-            </p>
-          ) : null}
         </div>
 
         <TabBar

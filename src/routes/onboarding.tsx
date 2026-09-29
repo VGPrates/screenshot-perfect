@@ -35,8 +35,7 @@ function Onboarding() {
       role: Role;
       displayName?: string;
       character?: CharacterDraft;
-      inviteCode?: string;
-    }) => chooseRole(payload.role, payload.displayName ?? "", payload.character, payload.inviteCode),
+    }) => chooseRole(payload.role, payload.displayName ?? "", payload.character),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["rpg-state"] });
       window.location.href = "/";

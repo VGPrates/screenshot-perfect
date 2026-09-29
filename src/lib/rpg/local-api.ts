@@ -23,14 +23,12 @@ export async function chooseRole(
   role: Role,
   displayName: string,
   character?: CharacterDraft,
-  inviteCode?: string,
 ) {
   return fns.chooseRoleFn({
     data: {
       role,
       displayName,
       ...(character ? { character } : {}),
-      ...(inviteCode ? { inviteCode } : {}),
     },
   });
 }

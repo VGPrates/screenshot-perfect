@@ -1,4 +1,3 @@
-import { randomBytes } from "node:crypto";
 import { getSql, type Sql } from "@/lib/db.server";
 import { INITIAL_UNSPENT_POINTS, slotAccepts } from "./constants";
 import type { RpgState } from "./api-types";
@@ -54,7 +53,7 @@ function asModifiers(value: unknown): Modifiers {
 }
 
 type RoleRow = { role: Role };
-type TableRow = { id: number; gm_user_id: string; name: string; invite_code: string };
+type TableRow = { id: number; gm_user_id: string; name: string };
 type ProfileRow = { user_id: string; display_name: string | null; avatar_url: string | null };
 type CharRow = {
   id: number;
@@ -118,14 +117,14 @@ async function roleOf(sql: Sql, userId: string): Promise<Role | null> {
 
 async function tableOfGm(sql: Sql, userId: string): Promise<TableRow | null> {
   const rows = await sql<TableRow>`
-    select id, gm_user_id, name, invite_code from game_tables where gm_user_id = ${userId}
+    select id, gm_user_id, name from game_tables where gm_user_id = ${userId}
   `;
   return rows[0] ?? null;
 }
 
 async function tableOfPlayer(sql: Sql, userId: string): Promise<TableRow | null> {
   const rows = await sql<TableRow>`
-    select t.id, t.gm_user_id, t.name, t.invite_code
+    select t.id, t.gm_user_id, t.name
     from game_tables t
     join characters c on c.table_id = t.id
     where c.user_id = ${userId}
@@ -174,30 +173,8 @@ async function requireViewCharacter(sql: Sql, userId: string, characterId: numbe
   return row;
 }
 
-function makeInviteCode(): string {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = randomBytes(6);
-  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
-}
-
-async function uniqueInvite(sql: Sql): Promise<string> {
-  for (let i = 0; i < 8; i += 1) {
-    const code = makeInviteCode();
-    const rows = await sql<{ id: number }>`select id from game_tables where invite_code = ${code}`;
-    if (!rows[0]) return code;
-  }
-  return randomBytes(8).toString("hex").slice(0, 8).toUpperCase();
-}
-
-async function resolveJoinTable(sql: Sql, inviteCode?: string): Promise<number | null> {
-  const code = inviteCode?.trim().toUpperCase() ?? "";
-  if (code) {
-    const rows = await sql<TableRow>`select * from game_tables where invite_code = ${code}`;
-    if (!rows[0]) throw new Error("Código da mesa inválido.");
-    return asInt(rows[0].id);
-  }
-  // Sem código: o jogador entra na mesa mais antiga existente. Nenhum código é
-  // exigido para criar conta ou entrar no painel.
+async function defaultJoinTable(sql: Sql): Promise<number | null> {
+  // O jogador entra na mesa mais antiga existente.
   const tables = await sql<TableRow>`select * from game_tables order by id asc`;
   if (tables[0]) return asInt(tables[0].id);
   return null;
@@ -382,7 +359,6 @@ async function loadProfile(sql: Sql, userId: string, role: Role): Promise<Profil
     displayName: p?.display_name ?? null,
     avatarUrl: p?.avatar_url ?? null,
     tableId: table ? asInt(table.id) : null,
-    inviteCode: role === "gm" ? (table?.invite_code ?? null) : null,
   };
 }
 
@@ -437,7 +413,7 @@ export async function getLibrary() {
 
 export async function chooseRoleForUser(
   userId: string,
-  input: { role: Role; displayName: string; character?: CharacterDraft; inviteCode?: string },
+  input: { role: Role; displayName: string; character?: CharacterDraft },
 ) {
   const sql = await getSql();
   const existing = await roleOf(sql, userId);
@@ -446,10 +422,9 @@ export async function chooseRoleForUser(
   if (input.role === "gm") {
     await sql`insert into user_roles (user_id, role) values (${userId}, 'gm')`;
     await upsertProfile(sql, userId, input.displayName);
-    const code = await uniqueInvite(sql);
     const created = await sql<{ id: number }>`
-      insert into game_tables (gm_user_id, name, invite_code)
-      values (${userId}, 'A Mesa', ${code})
+      insert into game_tables (gm_user_id, name)
+      values (${userId}, 'A Mesa')
       returning id
     `;
     const tableId = created[0]?.id;
@@ -464,7 +439,7 @@ export async function chooseRoleForUser(
 
   if (!input.character) throw new Error("Ficha obrigatória.");
   const d = draftOf(input.character);
-  const tableId = await resolveJoinTable(sql, input.inviteCode);
+  const tableId = await defaultJoinTable(sql);
   await sql`insert into user_roles (user_id, role) values (${userId}, 'player')`;
   await upsertProfile(sql, userId, input.displayName || d.name);
   await sql`
